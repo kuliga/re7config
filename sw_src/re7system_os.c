@@ -38,6 +38,16 @@ static TaskHandle_t verify_bitstream_task;
 static TaskHandle_t control_icap_task;
 static TaskHandle_t ui_task;
 
+/*
+ * Global instances.
+ */
+static XTmrCtr tmr0;
+static XAxiDma dma0;
+static XHwIcap hwicap0;
+static XGpio gpio0;
+
+/* for some reason this has to be declared here */
+void lwip_init();
 
 int main(void)
 {
@@ -47,19 +57,31 @@ int main(void)
 static void tftp_client(void *param)
 {
 
+	for (;;) {
+		
+	}
 }
 
 static void verify_bitstream(void *param)
 {
 
+	for (;;) {
+		
+	}
 }
 
 static void control_icap(void *param)
 {
 
+	for (;;) {
+		
+	}
 }
 
 static void ui(void *param)
 {
 
+	for (;;) {
+		
+	}
 }
