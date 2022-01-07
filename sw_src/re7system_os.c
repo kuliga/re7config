@@ -9,6 +9,7 @@
 #include "xaxidma.h"
 #include "xil_printf.h"
 #include "xintc.h"
+#include "netif/xadapter.h"
 
 /**
  * LwIP includes.
@@ -22,6 +23,9 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "timers.h"
+
+#define MHZ 		(66)
+#define TIMER_TLR 	(25000000*((float)MHZ/100))
 
 /*
  * Tasks declaration.
@@ -40,6 +44,11 @@ static TaskHandle_t control_icap_task;
 static TaskHandle_t ui_task;
 
 /*
+ * FreeRTOS objects.
+ */
+static TimerHandle_t virt_tmr0;
+
+/*
  * Global instances.
  */
 static XTmrCtr tmr0;
@@ -47,6 +56,8 @@ static XAxiDma dma0;
 static XHwIcap hwicap0;
 static XGpio gpio0;
 static XIntc intc0;
+
+void virt_tmr0_callback(TimerHandle_t virt_tmr);
 
 /*
  * ISRs.
@@ -102,6 +113,8 @@ int main(void)
 		return -1;
 	}
 
+	virt_tmr0 = xTimerCreate("virtual timer0", TIMER_TLR, 1, virt_tmr0_callback); 
+
 	for (;;) {
 	
 	}
@@ -112,6 +125,8 @@ int main(void)
 
 static void tftp_client(void *param)
 {
+	xTimerStart(virt_tmr0, 0);
+	
 
 	for (;;) {
 		
@@ -154,4 +169,30 @@ void hwicap_isr(void *param)
 void crc32blaze_isr(void *param)
 {
 
+}
+
+void virt_tmr0_callback(TimerHandle_t virt_tmr)
+{
+	volatile int TcpFastTmrFlag = 0;
+	volatile int TcpSlowTmrFlag = 0;
+	volatile unsigned int tftp_timer_count = 0;
+	static int DetectEthLinkStatus = 0;
+	/* we need to call tcp_fasttmr & tcp_slowtmr at intervals specified by lwIP.
+	 * It is not important that the timing is absoluetly accurate.
+	 */
+	static int odd = 1;
+
+	DetectEthLinkStatus++;
+	 TcpFastTmrFlag = 1;
+	 tftp_timer_count++;
+	odd = !odd;
+	if (odd) {
+		TcpSlowTmrFlag = 1;
+	}
+
+	/* For detecting Ethernet phy link status periodically */
+	if (DetectEthLinkStatus == ETH_LINK_DETECT_INTERVAL) {
+		eth_link_detect(echo_netif);
+		DetectEthLinkStatus = 0;
+	}
 }
