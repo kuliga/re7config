@@ -63,7 +63,6 @@ void virt_tmr0_callback(TimerHandle_t virt_tmr);
  * ISRs.
  */
 void gpio_isr(void *param);
-void hwicap_isr(void *param);
 void crc32blaze_isr(void *param);
 
 /* for some reason this has to be declared here */
@@ -81,7 +80,6 @@ int main(void)
 
 	XIntc_Start(&intc0, XIN_REAL_MODE);
 	XIntc_Connect(&intc0, XPAR_INTC_0_GPIO_0_VEC_ID, gpio_isr, NULL);
-	XIntc_Connect(&intc0, XPAR_INTC_0_HWICAP_0_VEC_ID, hwicap_isr, NULL);
 	XIntc_Connect(&intc0, XPAR_INTC_0_CRC32BLAZE_0_VEC_ID, crc32blaze_isr, NULL);
 	
 	/*
@@ -162,10 +160,6 @@ void gpio_isr(void *param)
 
 }
 
-void hwicap_isr(void *param)
-{
-
-}
 void crc32blaze_isr(void *param)
 {
 
