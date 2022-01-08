@@ -68,6 +68,8 @@ void crc32blaze_isr(void *param);
 /* for some reason this has to be declared here */
 void lwip_init();
 
+static volatile unsigned int tftp_timer_count = 0;
+
 int main(void)
 {
 	int status;
@@ -149,6 +151,7 @@ static void control_icap(void *param)
 
 static void ui(void *param)
 {
+	/* this task should be waken up from gpio_isr() */
 
 	for (;;) {
 		
@@ -157,7 +160,7 @@ static void ui(void *param)
 
 void gpio_isr(void *param)
 {
-
+	
 }
 
 void crc32blaze_isr(void *param)
@@ -167,9 +170,8 @@ void crc32blaze_isr(void *param)
 
 void virt_tmr0_callback(TimerHandle_t virt_tmr)
 {
-	volatile int TcpFastTmrFlag = 0;
-	volatile int TcpSlowTmrFlag = 0;
-	volatile unsigned int tftp_timer_count = 0;
+	static volatile int TcpFastTmrFlag = 0;
+	static volatile int TcpSlowTmrFlag = 0;
 	static int DetectEthLinkStatus = 0;
 	/* we need to call tcp_fasttmr & tcp_slowtmr at intervals specified by lwIP.
 	 * It is not important that the timing is absoluetly accurate.
