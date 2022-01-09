@@ -74,7 +74,7 @@ static volatile unsigned int tftp_timer_count = 0;
 
 int main(void)
 {
-	int status;
+	int status = -1;
 	/* Initialize all driver instances */
 	status = XIntc_Initialize(&intc, 0);
 	if (status) {
@@ -86,15 +86,9 @@ int main(void)
 	XIntc_Connect(&intc0, XPAR_INTC_0_GPIO_0_VEC_ID, gpio_isr, NULL);
 	XIntc_Connect(&intc0, XPAR_INTC_0_CRC32BLAZE_0_VEC_ID, crc32blaze_isr, NULL);
 	
-	/*
-	 * Timer initialization is done inside FreeRTOS. 
-	 */
-	//status = XTmrCtr_Initialize(&tmr0, 0);
-	//if (status) {
-	//	xil_printf("\r\ntimer init fault");
-	//	return -1;
-	//}
+	/* Timer initialization is done inside FreeRTOS. */
 	
+	/* Initialize all driver instances */	
 	status = XGpio_Initialize(&gpio0, 0);
 	if (status) {
 		xil_printf("\r\ngpio init fault");
