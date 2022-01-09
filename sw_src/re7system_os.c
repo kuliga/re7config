@@ -46,7 +46,8 @@ static TaskHandle_t ui_task;
 /*
  * FreeRTOS objects.
  */
-static TimerHandle_t virt_tmr0;
+static TimerHandle_t lwip_vtmr;
+static TimerHandle_t gpio_vtmr;
 
 /*
  * Global instances.
@@ -57,7 +58,8 @@ static XHwIcap hwicap0;
 static XGpio gpio0;
 static XIntc intc0;
 
-void virt_tmr0_callback(TimerHandle_t virt_tmr);
+void lwip_vtmr_callback(TimerHandle_t vtmr);
+void gpio_vtmr_callback(TimerHandle_t vtmr)
 
 /*
  * ISRs.
@@ -113,7 +115,8 @@ int main(void)
 		return -1;
 	}
 
-	virt_tmr0 = xTimerCreate("virtual timer0", TIMER_TLR, 1, virt_tmr0_callback); 
+	lwip_vtmr = xTimerCreate("lwip timer", TIMER_TLR, 1, lwip_vtmr_callback); 
+	gpio_vmtr = XTimerCreate("gpio debounce timer", TIMER_TLR, 0, gpio_vtmr_callback);	
 
 	for (;;) {
 	
@@ -125,7 +128,7 @@ int main(void)
 
 static void tftp_client(void *param)
 {
-	xTimerStart(virt_tmr0, 0);
+	xTimerStart(lwip_vtmr, 0);
 	
 
 	for (;;) {
@@ -168,7 +171,12 @@ void crc32blaze_isr(void *param)
 
 }
 
-void virt_tmr0_callback(TimerHandle_t virt_tmr)
+void gpio_vtmr_callback(TimerHandle_t vtmr)
+{
+
+}
+
+void lwip_vtmr_callback(TimerHandle_t vtmr)
 {
 	static volatile int TcpFastTmrFlag = 0;
 	static volatile int TcpSlowTmrFlag = 0;
