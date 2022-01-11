@@ -114,7 +114,7 @@ int main(void)
 	}
 
 	lwip_vtmr = xTimerCreate("lwip timer", TIMER_TLR, 1, lwip_vtmr_callback); 
-	gpio_vmtr = XTimerCreate("gpio debounce timer", TIMER_TLR, 0, gpio_vtmr_callback);	
+	gpio_vmtr = XTimerCreate("gpio debounce timer", pdMS_TO_TICKS(200), 0, gpio_vtmr_callback);	
 
 	for (;;) {
 	
