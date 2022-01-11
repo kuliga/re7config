@@ -57,6 +57,7 @@ static XAxiDma dma0;
 static XHwIcap hwicap0;
 static XGpio gpio0;
 static XIntc intc0;
+static unsigned int buttons_fsm;
 
 void lwip_vtmr_callback(TimerHandle_t vtmr);
 void gpio_vtmr_callback(TimerHandle_t vtmr)
@@ -161,18 +162,23 @@ static void ui(void *param)
 
 void gpio_isr(void *param)
 {
+	UBaseType_t isr_flags = taskENTER_CRITICAL_FROM_ISR();
+
 	XIntc_Acknowledge(&xintc0, XPAR_INTC_0_GPIO_0_VEC_ID);
 	gpio_pins = XGpio_DiscreteRead(&gpio0, 2);	
+	buttons_fsm = 1;
+	XGpio_DisableInterrupts(&gpio0, 2);
 
-	BaseType_t flag;
+	taskEXIT_CRITICAL_FROM_ISR(isr_flags);
 
-	if (!xTimerStartFromISR(&gpio_vtmr, &flag))
-		xil_printf("\r\ngpio_vtmr queue full");
+	BaseType_t gpio_vtmr_flag;
+
+	if (!xTimerStartFromISR(&gpio_vtmr, &gpio_vtmr_flag))
+		xil_printf("\r\ngpio_vtmr queue in isr full");
 
 	if (flag)
 		xil_printf("\r\ncontext switch needed!");
 	
-	XGpio_DisableInterrupts(&gpio0, 2);
 }
 
 void crc32blaze_isr(void *param)
@@ -182,7 +188,40 @@ void crc32blaze_isr(void *param)
 
 void gpio_vtmr_callback(TimerHandle_t vtmr)
 {
+	u32 gpio_curr_state = XGpio_DiscreteRead(&gpio0, 2);
 
+	switch (buttons_fsm) {
+	u32 gpio_tmp_state;
+	case 1:	/* gpio_pins value set in gpio_isr() */
+		gpio_pins &= gpio_curr_state;
+		if (gpio_pins) {
+			buttons_fsm = 2;
+			if (!xTimerStart(vtmr, pdMS_TO_TICKS(200))
+				xil_printf("\r\ngpio_vtmr queue in callback full");
+
+		} else {
+			goto reset_fsm;
+		}
+		return;
+	case 2: /* gpio_pins value set in fsm */
+		gpio_tmp_state = gpio_pins ^ gpio_curr_state;
+		if (!gpio_tmp_state) { 
+			/* the button is still being pressed */
+			if (!xTimerStart(&vtmr, pdMS_TO_TICKS(200))
+				xil_printf("\r\ngpio_vtmr queue in callback full");
+		} else {
+			gpio_pins = gpio_tmp_state;
+			xTaskNotifyGive(ui_task);		
+			goto reset_fsm;
+		}
+		return;
+	default:
+		return;
+	}
+
+reset_fsm:
+	buttons_fsm = 0;
+	XGpio_InterruptsEnable(&gpio0, 2);
 }
 
 void lwip_vtmr_callback(TimerHandle_t vtmr)
