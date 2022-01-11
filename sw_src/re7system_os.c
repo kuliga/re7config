@@ -70,7 +70,7 @@ void crc32blaze_isr(void *param);
 /* for some reason this has to be declared here */
 void lwip_init();
 
-static volatile unsigned int tftp_timer_count = 0;
+static volatile unsigned int tftp_timer_count;
 
 int main(void)
 {
@@ -181,8 +181,8 @@ void lwip_vtmr_callback(TimerHandle_t vtmr)
 	static int odd = 1;
 
 	DetectEthLinkStatus++;
-	 TcpFastTmrFlag = 1;
-	 tftp_timer_count++;
+	TcpFastTmrFlag = 1;
+	tftp_timer_count++;
 	odd = !odd;
 	if (odd) {
 		TcpSlowTmrFlag = 1;
