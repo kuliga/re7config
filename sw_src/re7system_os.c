@@ -95,6 +95,8 @@ int main(void)
 		xil_printf("\r\ngpio init fault");
 		return -1;
 	}
+
+	XGpio_GlobalInterruptEnable(&gpio0);
 	
 	XHwIcap_Config *hwicap0_cfg = XHwIcap_LookupConfig(XPAR_HWICAP_0_DEVICE_ID);
 	status = XHwIcap_Initialize(&hwicap0, hwicap0_cfg, XPAR_HWICAP_0_BASEADDR);
@@ -150,6 +152,7 @@ static void control_icap(void *param)
 static void ui(void *param)
 {
 	/* this task should be waken up from gpio_isr() */
+ 	XGpio_InterruptEnable(&gpio0, 2);
 
 	for (;;) {
 		
