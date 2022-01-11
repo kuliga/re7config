@@ -71,6 +71,7 @@ void crc32blaze_isr(void *param);
 void lwip_init();
 
 static volatile unsigned int tftp_timer_count;
+static volatile u32 gpio_pins;
 
 int main(void)
 {
@@ -157,6 +158,16 @@ static void ui(void *param)
 
 void gpio_isr(void *param)
 {
+	XIntc_Acknowledge(&xintc0, XPAR_INTC_0_GPIO_0_VEC_ID);
+	gpio_pins = XGpio_DiscreteRead(&gpio0, 2);	
+
+	BaseType_t flag;
+
+	if (!xTimerStartFromISR(&gpio_vtmr, &flag))
+		xil_printf("\r\ngpio_vtmr queue full");
+
+	if (flag)
+		xil_printf("\r\ncontext switch needed!");
 	
 }
 
