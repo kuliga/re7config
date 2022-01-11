@@ -172,6 +172,7 @@ void gpio_isr(void *param)
 	if (flag)
 		xil_printf("\r\ncontext switch needed!");
 	
+	XGpio_DisableInterrupts(&gpio0, 2);
 }
 
 void crc32blaze_isr(void *param)
