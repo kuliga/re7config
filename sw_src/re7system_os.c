@@ -26,6 +26,7 @@
 
 #define MHZ 		(66)
 #define TIMER_TLR 	(25000000*((float)MHZ/100))
+#define ETH_LINK_DETECT_INTERVAL 4
 
 /*
  * Tasks declaration.
@@ -61,7 +62,7 @@ static unsigned int buttons_fsm;
 static char *bitstream;
 
 void lwip_vtmr_callback(TimerHandle_t vtmr);
-void gpio_vtmr_callback(TimerHandle_t vtmr)
+void gpio_vtmr_callback(TimerHandle_t vtmr);
 
 /*
  * ISRs.
@@ -79,7 +80,7 @@ int main(void)
 {
 	int status = -1;
 	/* Initialize all driver instances */
-	status = XIntc_Initialize(&intc, 0);
+	status = XIntc_Initialize(&intc0, 0);
 	if (status) {
 		xil_printf("\r\nintc init fault");
 		return -1;
@@ -98,24 +99,25 @@ int main(void)
 		return -1;
 	}
 
-	XGpio_GlobalInterruptEnable(&gpio0);
+	XGpio_InterruptGlobalEnable(&gpio0);
 	
 	XHwIcap_Config *hwicap0_cfg = XHwIcap_LookupConfig(XPAR_HWICAP_0_DEVICE_ID);
-	status = XHwIcap_Initialize(&hwicap0, hwicap0_cfg, XPAR_HWICAP_0_BASEADDR);
+	status = XHwIcap_CfgInitialize(&hwicap0, hwicap0_cfg, XPAR_HWICAP_0_BASEADDR);
 	if (status) {
 		xil_printf("\r\nhwicap init fault");
 		return -1;
 	}
 
 	XAxiDma_Config *dma0_cfg = XAxiDma_LookupConfig(XPAR_AXI_DMA_0_DEVICE_ID);
-	status = XAxiDma_Initialize(&dma0, dma0_cfg);
+	status = XAxiDma_CfgInitialize(&dma0, dma0_cfg);
 	if (status) {
 		xil_printf("\r\ndma init fault");
 		return -1;
 	}
 
-	lwip_vtmr = xTimerCreate("lwip timer", TIMER_TLR, 1, lwip_vtmr_callback); 
-	gpio_vmtr = XTimerCreate("gpio debounce timer", pdMS_TO_TICKS(200), 0, gpio_vtmr_callback);	
+	lwip_vtmr = xTimerCreate("lwip timer", TIMER_TLR, 1, (void*) 0, lwip_vtmr_callback);
+	gpio_vtmr = xTimerCreate("gpio debounce timer", pdMS_TO_TICKS(200), 0, (void*) 1,
+																gpio_vtmr_callback);
 
 	for (;;) {
 	
@@ -181,10 +183,10 @@ void gpio_isr(void *param)
 {
 	UBaseType_t isr_flags = taskENTER_CRITICAL_FROM_ISR();
 
-	XIntc_Acknowledge(&xintc0, XPAR_INTC_0_GPIO_0_VEC_ID);
+	XIntc_Acknowledge(&intc0, XPAR_INTC_0_GPIO_0_VEC_ID);
 	gpio_pins = XGpio_DiscreteRead(&gpio0, 2);	
 	buttons_fsm = 1;
-	XGpio_DisableInterrupts(&gpio0, 2);
+	XGpio_InterruptDisable(&gpio0, 2);
 
 	taskEXIT_CRITICAL_FROM_ISR(isr_flags);
 
@@ -193,7 +195,7 @@ void gpio_isr(void *param)
 	if (!xTimerStartFromISR(&gpio_vtmr, &gpio_vtmr_flag))
 		xil_printf("\r\ngpio_vtmr queue in isr full");
 
-	if (flag)
+	if (gpio_vtmr_flag)
 		xil_printf("\r\ncontext switch needed!");
 	
 }
@@ -213,7 +215,7 @@ void gpio_vtmr_callback(TimerHandle_t vtmr)
 		gpio_pins &= gpio_curr_state;
 		if (gpio_pins) {
 			buttons_fsm = 2;
-			if (!xTimerStart(vtmr, pdMS_TO_TICKS(200))
+			if (!xTimerStart(vtmr, pdMS_TO_TICKS(200)))
 				xil_printf("\r\ngpio_vtmr queue in callback full");
 
 		} else {
@@ -224,7 +226,7 @@ void gpio_vtmr_callback(TimerHandle_t vtmr)
 		gpio_tmp_state = gpio_pins ^ gpio_curr_state;
 		if (!gpio_tmp_state) { 
 			/* the button is still being pressed */
-			if (!xTimerStart(&vtmr, pdMS_TO_TICKS(200))
+			if (!xTimerStart(&vtmr, pdMS_TO_TICKS(200)))
 				xil_printf("\r\ngpio_vtmr queue in callback full");
 		} else {
 			gpio_pins = gpio_tmp_state;
@@ -238,7 +240,7 @@ void gpio_vtmr_callback(TimerHandle_t vtmr)
 
 reset_fsm:
 	buttons_fsm = 0;
-	XGpio_InterruptsEnable(&gpio0, 2);
+	XGpio_InterruptEnable(&gpio0, 2);
 }
 
 void lwip_vtmr_callback(TimerHandle_t vtmr)
@@ -261,7 +263,7 @@ void lwip_vtmr_callback(TimerHandle_t vtmr)
 
 	/* For detecting Ethernet phy link status periodically */
 	if (DetectEthLinkStatus == ETH_LINK_DETECT_INTERVAL) {
-		eth_link_detect(echo_netif);
+//		eth_link_detect(echo_netif);
 		DetectEthLinkStatus = 0;
 	}
 }
