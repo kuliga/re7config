@@ -141,6 +141,8 @@ static void tftp_client(void *param)
 
 	for (;;) {
 		
+
+		/* memcpy received file */
 	}
 }
 
@@ -148,7 +150,20 @@ static void verify_bitstream(void *param)
 {
 
 	for (;;) {
-		
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);	
+
+		mbar(3);
+		microblaze_flush_dcache();
+			
+		int status = XAxiDma_SimpleTransfer(&dma0, (UINTPTR) bitstream, bitstream_size,
+									XAXIDMA_DMA_TO_DEVICE);	
+		if (status) {
+			XAxiDma_Reset(&dma0);	
+			xil_printf("\r\ndma transfer fail");
+		}
+
+		/* basic setup with polling dma status, to be changed later */
+		while (XAxiDma_Busy(&dma0, XAXIDMA_DMA_TO_DEVICE));
 	}
 }
 
