@@ -27,7 +27,9 @@
 #define MHZ 		(66)
 #define TIMER_TLR 	(25000000*((float)MHZ/100))
 #define ETH_LINK_DETECT_INTERVAL 4
-
+/* to be determined */
+#warning
+#define CRC32_POLYNOMIAL (0x48679999U) 
 /*
  * Tasks declaration.
  */
@@ -58,8 +60,11 @@ static XAxiDma dma0;
 static XHwIcap hwicap0;
 static XGpio gpio0;
 static XIntc intc0;
+
+/* Global variables */
 static unsigned int buttons_fsm;
 static char *bitstream;
+static unsigned int verification_fail_stats;
 
 void lwip_vtmr_callback(TimerHandle_t vtmr);
 void gpio_vtmr_callback(TimerHandle_t vtmr);
@@ -190,19 +195,40 @@ void gpio_isr(void *param)
 
 	taskEXIT_CRITICAL_FROM_ISR(isr_flags);
 
-	BaseType_t gpio_vtmr_flag;
+	BaseType_t flag;
 
-	if (!xTimerStartFromISR(&gpio_vtmr, &gpio_vtmr_flag))
+	if (!xTimerStartFromISR(&gpio_vtmr, &flag))
 		xil_printf("\r\ngpio_vtmr queue in isr full");
 
-	if (gpio_vtmr_flag)
+	if (flag)
 		xil_printf("\r\ncontext switch needed!");
 	
 }
 
 void crc32blaze_isr(void *param)
 {
+	UBaseType_t isr_flags = taskENTER_CRITICAL_FROM_ISR();
 
+	XIntc_Acknowledge(&intc0, XPAR_MICROBLAZE_0_AXI_INTC_CRC32BLAZE_0_INTERRUPT_INTR);
+
+ 	u32 checksum= Xil_In32(XPAR_CRC32BLAZE_0_S00_AXI_BASEADDR + 0xc);
+
+	/* clear interrupt */
+	Xil_Out32(XPAR_CRC32BLAZE_0_S00_AXI_BASEADDR + 0x8, 1);
+	/* initialize block */
+	Xil_Out32(XPAR_CRC32BLAZE_0_S00_AXI_BASEADDR + 0x4, 1);
+
+	taskEXIT_CRITICAL_FROM_ISR(isr_flags);
+
+	if (checksum != CRC32_POLYNOMIAL) {
+		verification_fail_stats++;
+		return;
+	}
+
+	BaseType_t flag;	
+	vTaskNotifyGiveFromISR(control_icap_task, &flag);
+	if (flag)
+		xil_printf("\r\ncontext switch needed!");
 }
 
 void gpio_vtmr_callback(TimerHandle_t vtmr)
