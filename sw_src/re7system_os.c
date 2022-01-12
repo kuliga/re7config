@@ -58,6 +58,7 @@ static XHwIcap hwicap0;
 static XGpio gpio0;
 static XIntc intc0;
 static unsigned int buttons_fsm;
+static char *bitstream;
 
 void lwip_vtmr_callback(TimerHandle_t vtmr);
 void gpio_vtmr_callback(TimerHandle_t vtmr)
@@ -159,18 +160,18 @@ static void ui(void *param)
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);	
 		
 		switch (gpio_pins) {
-		char bitstream[64];
+		char *bitstream_name;
 		case 1: 
-			bitstream = "red_x32_nobitswap.bin";
+			bitstream_name = "red_x32_nobitswap.bin";
 			break;
 		case 2:
-			bitstream = "green_x32_nobitswap.bin";
+			bitstream_name = "green_x32_nobitswap.bin";
 			break;
 		case 4: 
-			bitstream = "blue_x32_nobitswap.bin";
+			bitstream_name = "blue_x32_nobitswap.bin";
 			break;
 		default:
-			bitstream = "static_x32_nobitswap.bin";
+			bitstream_name = "static_x32_nobitswap.bin";
 			break;
 		}
 	}
