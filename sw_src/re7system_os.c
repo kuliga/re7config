@@ -64,7 +64,9 @@ static XIntc intc0;
 /* Global variables */
 static unsigned int buttons_fsm;
 static char *bitstream;
+static u32 bitstream_size;
 static unsigned int verification_fail_stats;
+static unsigned int bitstream_write_fail_stats;
 
 void lwip_vtmr_callback(TimerHandle_t vtmr);
 void gpio_vtmr_callback(TimerHandle_t vtmr);
@@ -121,8 +123,8 @@ int main(void)
 	}
 
 	lwip_vtmr = xTimerCreate("lwip timer", TIMER_TLR, 1, (void*) 0, lwip_vtmr_callback);
-	gpio_vtmr = xTimerCreate("gpio debounce timer", pdMS_TO_TICKS(200), 0, (void*) 1,
-																gpio_vtmr_callback);
+	gpio_vtmr = xTimerCreate("gpio debounce timer", pdMS_TO_TICKS(200), 0, (void*) 1, 
+									gpio_vtmr_callback);
 
 	for (;;) {
 	
@@ -154,7 +156,12 @@ static void control_icap(void *param)
 {
 
 	for (;;) {
-		
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);	
+
+		XHwIcap_FlushFifo(&hwicap0);
+
+		if (XHwIcap_DeviceWrite(&hwicap0, bitstream, bitstream_size / 4))
+			bitstream_write_fail_stats++;
 	}
 }
 
