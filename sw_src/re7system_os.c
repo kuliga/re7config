@@ -156,7 +156,7 @@ static void ui(void *param)
  	XGpio_InterruptEnable(&gpio0, 2);
 
 	for (;;) {
-		
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);	
 	}
 }
 
