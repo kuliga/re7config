@@ -157,6 +157,22 @@ static void ui(void *param)
 
 	for (;;) {
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);	
+		
+		switch (gpio_pins) {
+		char bitstream[64];
+		case 1: 
+			bitstream = "red_x32_nobitswap.bin";
+			break;
+		case 2:
+			bitstream = "green_x32_nobitswap.bin";
+			break;
+		case 4: 
+			bitstream = "blue_x32_nobitswap.bin";
+			break;
+		default:
+			bitstream = "static_x32_nobitswap.bin";
+			break;
+		}
 	}
 }
 
