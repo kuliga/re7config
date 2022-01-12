@@ -163,13 +163,12 @@ static void ui(void *param)
 void gpio_isr(void *param)
 {
 	UBaseType_t isr_flags = taskENTER_CRITICAL_FROM_ISR();
-
 	XIntc_Acknowledge(&xintc0, XPAR_INTC_0_GPIO_0_VEC_ID);
+	taskEXIT_CRITICAL_FROM_ISR(isr_flags);
+
 	gpio_pins = XGpio_DiscreteRead(&gpio0, 2);	
 	buttons_fsm = 1;
 	XGpio_DisableInterrupts(&gpio0, 2);
-
-	taskEXIT_CRITICAL_FROM_ISR(isr_flags);
 
 	BaseType_t gpio_vtmr_flag;
 
