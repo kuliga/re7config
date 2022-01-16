@@ -94,8 +94,15 @@ int main(void)
 	}
 
 	XIntc_Start(&intc0, XIN_REAL_MODE);
+
 	XIntc_Connect(&intc0, XPAR_INTC_0_GPIO_0_VEC_ID, gpio_isr, NULL);
+	XIntc_Enable(&intc0,  XPAR_INTC_0_GPIO_0_VEC_ID);
+	
 	XIntc_Connect(&intc0, XPAR_INTC_0_CRC32BLAZE_0_VEC_ID, crc32blaze_isr, NULL);
+	XIntc_Enable(&intc0,  XPAR_INTC_0_CRC32BLAZE_0_VEC_ID);
+	
+	/* ISR for emaclite is registered in lwip_init() */
+	XIntc_Enable(&intc0, XPAR_INTC_0_EMACLITE_0_VEC_ID);
 	
 	/* Timer initialization is done inside FreeRTOS. */
 	
