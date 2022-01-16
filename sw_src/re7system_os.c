@@ -131,6 +131,20 @@ int main(void)
 		return -1;
 	}
 
+	/* initialize lwip */
+	ip_addr_t local_ipaddr, server_ipaddr, gateway_ipaddr, netmask_ipaddr;
+	unsigned char mac_ethaddr[] =                                               
+	    { 0x00, 0x0a, 0x35, 0x00, 0x01, 0x02 };
+
+	IP_ADDR(&local_ipaddr, 192, 168, 2, 10);
+	IP_ADDR(&server_ipaddr, 192, 168, 2, 11);
+	IP_ADDR(&gateway_ipaddr, 192, 168, 2, 1); /* not relevant */
+	IP_ADDR(&netmask_ipaddr, 255, 255, 255, 0);
+
+	lwip_init();
+
+
+
 	lwip_vtmr = xTimerCreate("lwip timer", TIMER_TLR, 1, (void*) 0, lwip_vtmr_callback);
 	gpio_vtmr = xTimerCreate("gpio debounce timer", pdMS_TO_TICKS(200), 0, (void*) 1, 
 									gpio_vtmr_callback);
