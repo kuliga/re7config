@@ -93,6 +93,8 @@ int main(void)
 		return -1;
 	}
 
+	microblaze_register_handler((XInterruptHandler) XIntc_DeviceInterruptHandler, &intc0);
+
 	XIntc_Start(&intc0, XIN_REAL_MODE);
 
 	XIntc_Connect(&intc0, XPAR_INTC_0_GPIO_0_VEC_ID, gpio_isr, NULL);
@@ -132,6 +134,8 @@ int main(void)
 	lwip_vtmr = xTimerCreate("lwip timer", TIMER_TLR, 1, (void*) 0, lwip_vtmr_callback);
 	gpio_vtmr = xTimerCreate("gpio debounce timer", pdMS_TO_TICKS(200), 0, (void*) 1, 
 									gpio_vtmr_callback);
+
+	microblaze_enable_interrupts();
 
 	for (;;) {
 	
