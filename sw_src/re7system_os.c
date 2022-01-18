@@ -10,6 +10,7 @@
 #include "xil_printf.h"
 #include "xintc.h"
 #include "netif/xadapter.h"
+#include "xil_cache.h"
 
 /**
  * LwIP includes.
@@ -100,6 +101,9 @@ static volatile u32 gpio_pins;
 
 int main(void)
 {
+	microblaze_enable_dcache();
+	microblaze_enable_icache();
+
 	int status = -1;
 	/* Initialize all driver instances */
 	status = XIntc_Initialize(&intc0, 0);
