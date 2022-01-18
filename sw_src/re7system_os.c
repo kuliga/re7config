@@ -27,6 +27,9 @@
 #define MHZ 		(66)
 #define TIMER_TLR 	(25000000*((float)MHZ/100))
 #define ETH_LINK_DETECT_INTERVAL 4
+#define PR_TFTP_TIMEOUT_THRESHOLD 50
+#define PR_TFTP_TIMEOUT_RETRY      3
+
 /* to be determined */
 #warning
 #define CRC32_POLYNOMIAL (0x48679999U) 
@@ -66,6 +69,12 @@ static ip_addr_t local_ipaddr, server_ipaddr, gateway_ipaddr, netmask;
 static unsigned char mac_ethaddr[] =                                               
 	    { 0x00, 0x0a, 0x35, 0x00, 0x01, 0x02 };
 static struct netif netif;
+static pr_tftp_options_s transfer_opts = {
+		.ReallocateMemoryIfRequired = 0,
+		.IncrementAmount = 0,
+		.DebugTftp = 0,
+		.DebugMemoryAllocation = 0
+};
 
 /* Global variables */
 static unsigned int buttons_fsm;
