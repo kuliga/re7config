@@ -79,7 +79,9 @@ static pr_tftp_options_s transfer_opts = {
 
 /* Global variables */
 static unsigned int buttons_fsm;
-static char *bitstream;
+static char *bitstream = 0x85000000U;
+u32 *bitstream_buffer = 0x84000000U;
+static char *bitstream_name;
 static u32 bitstream_size;
 static unsigned int verification_fail_stats;
 static unsigned int bitstream_write_fail_stats;
@@ -187,9 +189,15 @@ static void tftp_client(void *param)
 	
 
 	for (;;) {
-		
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);	
+
+		int status = PR_TFTP_FetchPartialToMem(netif, server_ipaddr, bitstream_name,
+					(char**) &bitstream, &bitstream_size, &bitstream_size, 
+					&tftp_timer_count, PR_TFTP_TIMEOUT_THRESHOLD,
+					PR_TFTP_TIMEOUT_RETRY, &transfer_opts);
 
 		/* memcpy received file */
+		memcpy(bitstream_buffer, bitstream, bitstream_size);
 	}
 }
 
@@ -236,7 +244,6 @@ static void ui(void *param)
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);	
 		
 		switch (gpio_pins) {
-		char *bitstream_name;
 		case 1: 
 			bitstream_name = "red_x32_nobitswap.bin";
 			break;
@@ -250,6 +257,7 @@ static void ui(void *param)
 			bitstream_name = "static_x32_nobitswap.bin";
 			break;
 		}
+		/* notify tftp client */
 	}
 }
 
