@@ -67,14 +67,14 @@ static XIntc intc0;
 
 /* lwip objects */
 static ip_addr_t local_ipaddr, server_ipaddr, gateway_ipaddr, netmask;
-static unsigned char mac_ethaddr[] =                                               
+static unsigned char mac_eth_addr[] =                                               
 	    { 0x00, 0x0a, 0x35, 0x00, 0x01, 0x02 };
 static struct netif netif;
 static pr_tftp_options_s transfer_opts = {
-		.ReallocateMemoryIfRequired = 0,
-		.IncrementAmount = 0,
-		.DebugTftp = 0,
-		.DebugMemoryAllocation = 0
+		.ReallocateMemoryIfRequired	= 0,
+		.IncrementAmount		= 0,
+		.DebugTftp			= 0,
+		.DebugMemoryAllocation		= 0
 };
 
 /* Global variables */
@@ -114,7 +114,8 @@ int main(void)
 		return -1;
 	}
 
-	microblaze_register_handler((XInterruptHandler) XIntc_DeviceInterruptHandler, &intc0);
+	microblaze_register_exception_handler(0, (Xil_ExceptionHandler) XIntc_DeviceInterruptHandler,
+											&intc0);
 
 	XIntc_Start(&intc0, XIN_REAL_MODE);
 
@@ -153,10 +154,10 @@ int main(void)
 	}
 
 	/* initialize lwip */
-	IP_ADDR(&local_ipaddr, 192, 168, 2, 10);
-	IP_ADDR(&server_ipaddr, 192, 168, 2, 11);
-	IP_ADDR(&gateway_ipaddr, 192, 168, 2, 1); /* not relevant */
-	IP_ADDR(&netmask, 255, 255, 255, 0);
+	IP4_ADDR(&local_ipaddr, 192, 168, 2, 10);
+	IP4_ADDR(&server_ipaddr, 192, 168, 2, 11);
+	IP4_ADDR(&gateway_ipaddr, 192, 168, 2, 1); /* not relevant */
+	IP4_ADDR(&netmask, 255, 255, 255, 0);
 
 	lwip_init();
 
@@ -191,7 +192,7 @@ static void tftp_client(void *param)
 	for (;;) {
 		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);	
 
-		int status = PR_TFTP_FetchPartialToMem(netif, server_ipaddr, bitstream_name,
+		int status = PR_TFTP_FetchPartialToMem(&netif, server_ipaddr, bitstream_name,
 					(char**) &bitstream, &bitstream_size, &bitstream_size, 
 					&tftp_timer_count, PR_TFTP_TIMEOUT_THRESHOLD,
 					PR_TFTP_TIMEOUT_RETRY, &transfer_opts);
