@@ -367,7 +367,7 @@ void lwip_vtmr_callback(TimerHandle_t vtmr)
 
 	/* For detecting Ethernet phy link status periodically */
 	if (DetectEthLinkStatus == ETH_LINK_DETECT_INTERVAL) {
-//		eth_link_detect(echo_netif);
+		eth_link_detect(&netif);
 		DetectEthLinkStatus = 0;
 	}
 }
