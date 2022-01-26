@@ -199,6 +199,8 @@ static void tftp_client(void *param)
 
 		/* memcpy received file */
 		memcpy(bitstream_buffer, bitstream, bitstream_size);
+
+		xTaskNotifyGive(verify_bitstream_task);
 	}
 }
 
@@ -258,7 +260,9 @@ static void ui(void *param)
 			bitstream_name = "static_x32_nobitswap.bin";
 			break;
 		}
+
 		/* notify tftp client */
+		xTaskNotifyGive(tftp_client_task);		
 	}
 }
 
