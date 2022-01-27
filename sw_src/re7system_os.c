@@ -174,7 +174,38 @@ int main(void)
 	gpio_vtmr = xTimerCreate("gpio debounce timer", pdMS_TO_TICKS(200), 0, (void*) 1, 
 									gpio_vtmr_callback);
 
+	/* register rtos tasks */
+	BaseType_t task_creation_status = xTaskCreate(tftp_client, "tftp client", 0x200,
+							NULL, 1, &tftp_client_task);
+	if (task_creation_status != pdPASS) {
+		xil_printf("\r\ntftp task creation failed");
+		return -1;
+	}
+
+	task_creation_status = xTaskCreate(verify_bitstream, "verify bitstream", 0x200,
+							NULL, 1, &verify_bitstream_task);
+	if (task_creation_status != pdPASS) {
+		xil_printf("\r\nverify bitstream task creation failed");
+		return -1;
+	}
+
+	task_creation_status = xTaskCreate(control_icap, "control icap", 0x200,
+							NULL, 1, &control_icap_task);
+	if (task_creation_status != pdPASS) {
+		xil_printf("\r\ncontrol icap task creation failed");
+		return -1;
+	}
+
+	task_creation_status = xTaskCreate(ui, "ui task", 0x200, NULL, 1, 
+								&ui_task);
+	if (task_creation_status != pdPASS) {
+		xil_printf("\r\nui task creation failed");
+		return -1;
+	}
+
 	microblaze_enable_interrupts();
+
+	vTaskStartScheduler();
 
 	for (;;) {
 	
