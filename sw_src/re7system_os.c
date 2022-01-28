@@ -31,9 +31,8 @@
 #define PR_TFTP_TIMEOUT_THRESHOLD 50
 #define PR_TFTP_TIMEOUT_RETRY      3
 
-/* to be determined */
-#warning
-#define CRC32_POLYNOMIAL (0x48679999U) 
+#define CRC32_POLYNOMIAL (0x48674BC7) 
+
 /*
  * Tasks declaration.
  */
