@@ -11,6 +11,7 @@
 #include "xintc.h"
 #include "netif/xadapter.h"
 #include "xil_cache.h"
+#include "xil_exception.h"
 
 /**
  * LwIP includes.
@@ -24,6 +25,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "timers.h"
+#include "portmacro.h"
 
 #define MHZ 		(66)
 #define TIMER_TLR 	(25000000*((float)MHZ/100))
@@ -58,11 +60,9 @@ static TimerHandle_t gpio_vtmr;
 /*
  * Global instances.
  */
-static XTmrCtr tmr0;
 static XAxiDma dma0;
 static XHwIcap hwicap0;
 static XGpio gpio0;
-static XIntc intc0;
 
 /* lwip objects */
 static ip_addr_t local_ipaddr, server_ipaddr, gateway_ipaddr, netmask;
@@ -72,14 +72,14 @@ static struct netif netif;
 static pr_tftp_options_s transfer_opts = {
 		.ReallocateMemoryIfRequired	= 0,
 		.IncrementAmount		= 0,
-		.DebugTftp			= 0,
+		.DebugTftp			= 1,
 		.DebugMemoryAllocation		= 0
 };
 
 /* Global variables */
 static unsigned int buttons_fsm;
-static char *bitstream = 0x85000000U;
-u32 *bitstream_buffer = 0x84000000U;
+static char *bitstream = (char*) 0x85000000U;
+u32 *bitstream_buffer = (u32*) 0x84000000U;
 static char *bitstream_name;
 static u32 bitstream_size;
 static unsigned int verification_fail_stats;
@@ -102,30 +102,19 @@ static volatile u32 gpio_pins;
 
 int main(void)
 {
-	microblaze_enable_dcache();
 	microblaze_enable_icache();
+	microblaze_enable_dcache();
 
 	int status = -1;
-	/* Initialize all driver instances */
-	status = XIntc_Initialize(&intc0, 0);
-	if (status) {
-		xil_printf("\r\nintc init fault");
-		return -1;
-	}
 
-	microblaze_register_exception_handler(0, (Xil_ExceptionHandler) XIntc_DeviceInterruptHandler,
-											&intc0);
-
-	XIntc_Start(&intc0, XIN_REAL_MODE);
-
-	XIntc_Connect(&intc0, XPAR_INTC_0_GPIO_0_VEC_ID, gpio_isr, NULL);
-	XIntc_Enable(&intc0,  XPAR_INTC_0_GPIO_0_VEC_ID);
+	xPortInstallInterruptHandler(XPAR_INTC_0_GPIO_0_VEC_ID, gpio_isr, &gpio0);
+	vPortEnableInterrupt(XPAR_INTC_0_GPIO_0_VEC_ID);
 	
-	XIntc_Connect(&intc0, XPAR_INTC_0_CRC32BLAZE_0_VEC_ID, crc32blaze_isr, NULL);
-	XIntc_Enable(&intc0,  XPAR_INTC_0_CRC32BLAZE_0_VEC_ID);
+	xPortInstallInterruptHandler(XPAR_INTC_0_CRC32BLAZE_0_VEC_ID, crc32blaze_isr, NULL);
+	vPortEnableInterrupt(XPAR_INTC_0_CRC32BLAZE_0_VEC_ID);
 	
 	/* ISR for emaclite is registered in lwip_init() */
-	XIntc_Enable(&intc0, XPAR_INTC_0_EMACLITE_0_VEC_ID);
+	vPortEnableInterrupt(XPAR_INTC_0_EMACLITE_0_VEC_ID);
 	
 	/* Timer initialization is done inside FreeRTOS. */
 	
@@ -136,8 +125,9 @@ int main(void)
 		return -1;
 	}
 
+ 	XGpio_InterruptEnable(&gpio0, 2);
 	XGpio_InterruptGlobalEnable(&gpio0);
-	
+
 	XHwIcap_Config *hwicap0_cfg = XHwIcap_LookupConfig(XPAR_HWICAP_0_DEVICE_ID);
 	status = XHwIcap_CfgInitialize(&hwicap0, hwicap0_cfg, XPAR_HWICAP_0_BASEADDR);
 	if (status) {
@@ -170,26 +160,26 @@ int main(void)
 	netif_set_up(&netif);
 
 	lwip_vtmr = xTimerCreate("lwip timer", TIMER_TLR, 1, (void*) 0, lwip_vtmr_callback);
-	gpio_vtmr = xTimerCreate("gpio debounce timer", pdMS_TO_TICKS(200), 0, (void*) 1, 
+	gpio_vtmr = xTimerCreate("gpio debounce timer", pdMS_TO_TICKS(20), 0, (void*) 1,
 									gpio_vtmr_callback);
 
 	/* register rtos tasks */
-	BaseType_t task_creation_status = xTaskCreate(tftp_client, "tftp client", 0x200,
-							NULL, 1, &tftp_client_task);
+	BaseType_t task_creation_status = xTaskCreate(tftp_client, "tftp client", 0x400,
+							NULL, 4, &tftp_client_task);
 	if (task_creation_status != pdPASS) {
 		xil_printf("\r\ntftp task creation failed");
 		return -1;
 	}
 
 	task_creation_status = xTaskCreate(verify_bitstream, "verify bitstream", 0x200,
-							NULL, 1, &verify_bitstream_task);
+							NULL, 2, &verify_bitstream_task);
 	if (task_creation_status != pdPASS) {
 		xil_printf("\r\nverify bitstream task creation failed");
 		return -1;
 	}
 
 	task_creation_status = xTaskCreate(control_icap, "control icap", 0x200,
-							NULL, 1, &control_icap_task);
+							NULL, 3, &control_icap_task);
 	if (task_creation_status != pdPASS) {
 		xil_printf("\r\ncontrol icap task creation failed");
 		return -1;
@@ -203,6 +193,8 @@ int main(void)
 	}
 
 	microblaze_enable_interrupts();
+	microblaze_enable_exceptions();
+	xil_printf("\r\nhello\r\n");
 
 	vTaskStartScheduler();
 
@@ -263,7 +255,7 @@ static void control_icap(void *param)
 
 		XHwIcap_FlushFifo(&hwicap0);
 
-		if (XHwIcap_DeviceWrite(&hwicap0, bitstream, bitstream_size / 4))
+		if (XHwIcap_DeviceWrite(&hwicap0, (u32*) bitstream, bitstream_size / 4))
 			bitstream_write_fail_stats++;
 	}
 }
@@ -271,10 +263,9 @@ static void control_icap(void *param)
 static void ui(void *param)
 {
 	/* this task should be waken up from gpio_isr() */
- 	XGpio_InterruptEnable(&gpio0, 2);
 
 	for (;;) {
-		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);	
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 		
 		switch (gpio_pins) {
 		case 1: 
@@ -287,12 +278,12 @@ static void ui(void *param)
 			bitstream_name = "blue_x32_nobitswap.bin";
 			break;
 		default:
-			bitstream_name = "static_x32_nobitswap.bin";
+			bitstream_name = "red_x32_nobitswap.bin";
 			break;
 		}
 
 		/* notify tftp client */
-		xTaskNotifyGive(tftp_client_task);		
+		xTaskNotifyGive(tftp_client_task);
 	}
 }
 
@@ -300,28 +291,25 @@ void gpio_isr(void *param)
 {
 	UBaseType_t isr_flags = taskENTER_CRITICAL_FROM_ISR();
 
-	XIntc_Acknowledge(&intc0, XPAR_INTC_0_GPIO_0_VEC_ID);
-	gpio_pins = XGpio_DiscreteRead(&gpio0, 2);	
+	gpio_pins = XGpio_DiscreteRead(&gpio0, 2);
 	buttons_fsm = 1;
 	XGpio_InterruptDisable(&gpio0, 2);
 
 	taskEXIT_CRITICAL_FROM_ISR(isr_flags);
 
-	BaseType_t flag;
+	BaseType_t flag = 1;
 
-	if (!xTimerStartFromISR(&gpio_vtmr, &flag))
+	if (!xTimerStartFromISR(gpio_vtmr, &flag))
 		xil_printf("\r\ngpio_vtmr queue in isr full");
 
-	if (flag)
-		xil_printf("\r\ncontext switch needed!");
+	if (!flag)
+		xil_printf("\r\ncontext switch needed! gpio vtmr");
 	
 }
 
 void crc32blaze_isr(void *param)
 {
 	UBaseType_t isr_flags = taskENTER_CRITICAL_FROM_ISR();
-
-	XIntc_Acknowledge(&intc0, XPAR_MICROBLAZE_0_AXI_INTC_CRC32BLAZE_0_INTERRUPT_INTR);
 
  	u32 checksum= Xil_In32(XPAR_CRC32BLAZE_0_S00_AXI_BASEADDR + 0xc);
 
@@ -340,7 +328,7 @@ void crc32blaze_isr(void *param)
 	BaseType_t flag;	
 	vTaskNotifyGiveFromISR(control_icap_task, &flag);
 	if (flag)
-		xil_printf("\r\ncontext switch needed!");
+		xil_printf("\r\ncontext switch needed! icap");
 }
 
 void gpio_vtmr_callback(TimerHandle_t vtmr)
@@ -364,7 +352,7 @@ void gpio_vtmr_callback(TimerHandle_t vtmr)
 		gpio_tmp_state = gpio_pins ^ gpio_curr_state;
 		if (!gpio_tmp_state) { 
 			/* the button is still being pressed */
-			if (!xTimerStart(&vtmr, pdMS_TO_TICKS(200)))
+			if (!xTimerStart(vtmr, pdMS_TO_TICKS(200)))
 				xil_printf("\r\ngpio_vtmr queue in callback full");
 		} else {
 			gpio_pins = gpio_tmp_state;
